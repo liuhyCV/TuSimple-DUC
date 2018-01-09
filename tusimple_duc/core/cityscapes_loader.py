@@ -161,3 +161,4 @@ class CityLoader(mx.io.DataIter):
     @staticmethod
     def _get_single(item, input_args):
         return utils.get_single_image_duc(item, input_args)
+        # return utils.get_single_instance_image(item, input_args)

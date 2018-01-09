@@ -123,7 +123,10 @@ def get_single_image_duc(item, input_args):
         img_data[i] -= rgb_mean[i]
 
     # read label
-    img_label = np.array(Image.open(os.path.join(label_path, item[1])))
+    #img_label = np.array(Image.open(os.path.join(label_path, item[1])))
+    img_label = cv.imread(os.path.join(label_path, item[1]), flags=cv.IMREAD_UNCHANGED)
+    img_label = np.int16(img_label)
+
     img_label = cv.resize(img_label, (scaled_shape[1], scaled_shape[0]), interpolation=cv.INTER_NEAREST)
     img_label = np.array(img_label, dtype=np.float)
     img_label = cv.copyMakeBorder(img_label, pad_h_up, pad_h_bottom, pad_w_left, pad_w_right, cv.BORDER_CONSTANT,
@@ -150,7 +153,10 @@ def get_single_image_duc(item, input_args):
     img_label = img_label.reshape((feat_height, stride / cell_width, feat_width, stride / cell_width))
     img_label = np.transpose(img_label, (1, 3, 0, 2))
     img_label = img_label.reshape((-1, feat_height, feat_width))
-    img_label = img_label.reshape(-1)
+    #img_label = img_label.reshape(-1)
+
+
+
     return [img_data], [img_label]
 
 

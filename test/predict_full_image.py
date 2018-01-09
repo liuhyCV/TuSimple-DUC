@@ -70,6 +70,7 @@ class ImageListTester:
         # paste heat map
         concat_img.paste(Image.fromarray(heat_map[:, :, [2, 1, 0]]).resize(self.result_shape[::-1]),
                          (result_width, result_height))
+
         concat_img.save(os.path.join(self.result_dir, 'visualization', img_name.replace('jpg', 'png')))
 
         # save results for score

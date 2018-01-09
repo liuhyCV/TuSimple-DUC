@@ -31,7 +31,6 @@ def get_symbol_duc_hdc(label_num=19, ignore_label=255, bn_use_global_stats=True,
         conv_aspp=mx.symbol.Convolution(data=res, num_filter=cell_cap * label_num, kernel=(3, 3), pad=pad,
                                         dilate=dilate, name=('fc1_%s_c%d' % (exp, i)), workspace=8192)
         aspp_list.append(conv_aspp)
-
     summ = mx.symbol.ElementWiseSum(*aspp_list, name=('fc1_%s' % exp))
 
     cls_score_reshape = mx.symbol.Reshape(data=summ, shape=(0, label_num, -1), name='cls_score_reshape')

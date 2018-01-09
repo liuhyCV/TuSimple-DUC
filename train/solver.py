@@ -7,9 +7,9 @@ from mxnet import metric
 from tusimple_duc.core import utils
 from tusimple_duc.core import lr_scheduler
 from tusimple_duc.core.cityscapes_loader import CityLoader
-from tusimple_duc.core.metrics import CompositeEvalMetric, AccWithIgnoreMetric, IoUMetric, SoftmaxLoss
+from tusimple_duc.core.metrics import CompositeEvalMetric, AccWithIgnoreMetric, IoUMetric, SoftmaxLoss, InstanceLossMetric
 from tusimple_duc.networks.network_duc_hdc import get_symbol_duc_hdc
-
+from tusimple_duc.networks.symbol_instance import get_enet_symbol
 
 class Solver(object):
     def __init__(self, config):
@@ -45,6 +45,7 @@ class Solver(object):
             self.momentum = config.getfloat('model', 'momentum')
             self.weight_decay = config.getfloat('model', 'weight_decay')
             # fine tuning
+            self.resume = config.get('model', 'resume')
             self.load_model_dir = config.get('model', 'load_model_dir')
             self.load_model_prefix = config.get('model', 'load_model_prefix')
             self.load_epoch = config.getint('model', 'load_epoch')
@@ -78,9 +79,11 @@ class Solver(object):
                     self.train_size += 1
             self.epoch_size = self.train_size / self.batch_size
             self.data_shape = [tuple(list([self.batch_size, 3, self.crop_shape[0], self.crop_shape[1]]))]
-            self.label_shape = [tuple([self.batch_size, (self.crop_shape[1]*self.crop_shape[0]/self.cell_width**2)])]
+            #self.label_shape = [tuple([self.batch_size, (self.crop_shape[1]*self.crop_shape[0]/self.cell_width**2)])]
+            self.label_shape = [
+                tuple([self.batch_size, self.crop_shape[0]/self.cell_width, self.crop_shape[1]/self.cell_width])]
             self.data_name = ['data']
-            self.label_name = ['seg_loss_label']
+            self.label_name = ['instanceLoss_label']
             self.symbol = None
             self.arg_params = None
             self.aux_params = None
@@ -120,6 +123,10 @@ class Solver(object):
         return train_dataloader, val_dataloader
 
     def get_symbol(self):
+
+        self.symbol = get_enet_symbol(num_classes=self.label_num)
+
+        '''
         self.symbol = get_symbol_duc_hdc(
             cell_cap=(self.ds_rate / self.cell_width) ** 2,
             label_num=self.label_num,
@@ -128,15 +135,20 @@ class Solver(object):
             aspp_num=self.aspp,
             aspp_stride=self.aspp_stride,
         )
+        '''
 
     # build up symbol, parameters and auxiliary parameters
     def get_model(self):
         self.get_symbol()
 
         # load model
-        if self.load_model_prefix is not None and self.load_epoch > 0:
-            self.symbol, self.arg_params, self.aux_params = \
-                mx.model.load_checkpoint(os.path.join(self.load_model_dir, self.load_model_prefix), self.load_epoch)
+        '''
+        if self.resume:
+            if self.load_model_prefix is not None and self.load_epoch > 0:
+                self.symbol, self.arg_params, self.aux_params = \
+                    mx.model.load_checkpoint(os.path.join(self.load_model_dir, self.load_model_prefix), self.load_epoch)
+
+        '''
 
     def fit(self):
         # kvstore
@@ -155,13 +167,15 @@ class Solver(object):
 
         # evaluate metrics
         eval_metric_lst = []
-        if "acc" in self.eval_metric:
-            eval_metric_lst.append(metric.create(self.eval_metric))
-        if "acc_ignore" in self.eval_metric and self.ignore_label is not None:
-            eval_metric_lst.append(AccWithIgnoreMetric(self.ignore_label, name="acc_ignore"))
-        if "IoU" in self.eval_metric and self.ignore_label is not None:
-            eval_metric_lst.append(IoUMetric(self.ignore_label, label_num=self.label_num, name="IoU"))
-        eval_metric_lst.append(SoftmaxLoss(self.ignore_label, label_num=self.label_num, name="SoftmaxLoss"))
+
+        # if "acc" in self.eval_metric:
+        #     eval_metric_lst.append(metric.create(self.eval_metric))
+        # if "acc_ignore" in self.eval_metric and self.ignore_label is not None:
+        #     eval_metric_lst.append(AccWithIgnoreMetric(self.ignore_label, name="acc_ignore"))
+        # if "IoU" in self.eval_metric and self.ignore_label is not None:
+        #     eval_metric_lst.append(IoUMetric(self.ignore_label, label_num=self.label_num, name="IoU"))
+        # eval_metric_lst.append(SoftmaxLoss(self.ignore_label, label_num=self.label_num, name="SoftmaxLoss"))
+        eval_metric_lst.append(InstanceLossMetric(self.ignore_label, name="instance_loss"))
         eval_metrics = CompositeEvalMetric(metrics=eval_metric_lst)
 
         optimizer_params = {}
