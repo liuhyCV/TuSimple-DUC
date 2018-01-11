@@ -247,6 +247,8 @@ class InstanceLossMetric(EvalMetric):
 
             loss_v = mx.nd.zeros((1))
             loss_d = mx.nd.zeros((1))
+            loss_r = mx.nd.zeros((1))
+
 
             for b in range(0, batch_size):
                 # dim * h * w
@@ -315,10 +317,21 @@ class InstanceLossMetric(EvalMetric):
 
                         loss_dist_perclass = loss_dist_perclass / (num_inst*(num_inst-1))
 
+                    for i_inst in range(0, num_inst):
+                        # i_inst mean
+                        local_mask_inst = local_label_inst == i_class_inst[i_inst]
+                        local_mask_inst = local_mask_inst.reshape((1, 1, feat_height, feat_width))
+
+                        local_mask_embedding = local_embedding * local_mask_inst
+                        # i_mean shape: dim
+                        i_mean = mx.nd.sum(local_mask_embedding, axis=[2, 3]) / mx.nd.sum(local_mask_inst)
+
+                        loss_r = loss_r + mx.nd.sqrt(mx.nd.sum(mx.nd.square(i_mean)))
+
                     loss_v = loss_v + loss_var_perclass
                     loss_d = loss_d + loss_dist_perclass
 
-                    loss = loss + loss_v + loss_d
+                    loss = loss + loss_v + loss_d + 0.001 * loss_r / num_inst
 
             loss = loss / batch_size
 
